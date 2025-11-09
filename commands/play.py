@@ -1,5 +1,7 @@
 import discord
 import asyncio
+from Speaker.ActualSong import actualSong
+from Speaker.SayHello import sayHello
 from utils.youtube import get_youtube_audio, get_image_youtube_video
 from utils.GetInfoSongFromYTMusic import GenerateQueueRecommended, GetInfoSongYTM
 
@@ -45,6 +47,10 @@ async def play_song(current_url, interaction=None, client=None, voice_client=Non
                     client.loop
                 )
                 
+        await actualSong(current_song['title'], current_song['artist'])
+        voice_client.play(discord.FFmpegPCMAudio("next_song.mp3"))
+        while voice_client.is_playing():
+            await asyncio.sleep(0.5)        
         voice_client.play(source, after=after_play)
 
     except Exception as e:
@@ -80,12 +86,17 @@ async def setup(client: discord.Client):
             if not voice_client:
                 voice_client = await voice_channel.connect()
                 print("✅ Conectado al canal de voz.")
+                await sayHello()
+                voice_client.play(discord.FFmpegPCMAudio("tts.mp3"))
             elif voice_client.channel != voice_channel:
                 await voice_client.move_to(voice_channel)
         except Exception as e:
             print("❌ Error al conectar al canal de voz:", e)
             await interaction.channel.send("❌ No pude conectarme al canal de voz.")
             return
+        
+        while voice_client.is_playing():
+            await asyncio.sleep(0.5)
 
         # Esperar hasta que esté conectado realmente
         timeout = 5
