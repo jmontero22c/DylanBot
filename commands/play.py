@@ -7,16 +7,23 @@ from utils.GetInfoSongFromYTMusic import GenerateQueueRecommended, GetInfoSongYT
 
 async def play_song(current_url, interaction=None, client=None, voice_client=None):
     try:
-        GenerateQueueRecommended(current_url, client, interaction.guild_id)
+        guild_id = interaction.guild_id
         
-        if len(client.music_queues[interaction.guild_id]) == 0:
+        # 1. Genera cola recomendada
+        GenerateQueueRecommended(current_url, client, guild_id)
+        
+        queue = client.music_queues.get(guild_id, [])
+        if not queue:
             await interaction.channel.send("URL inválida")
             return
   
-        current_song = client.music_queues[interaction.guild_id][0]
+        current_song = queue[0]
         
+        # 2. Obtiene audio y miniatura
         audio_url = get_youtube_audio(current_song['url_yt'])
+        thumbnail = get_image_youtube_video(current_song["url_yt"])
         
+        # 3. Embed de estado 
         embed = discord.Embed(
             title="🎵 Reproductor de música",
             description=f"Reproduciendo: **{current_song['title']}**",
@@ -26,17 +33,19 @@ async def play_song(current_url, interaction=None, client=None, voice_client=Non
             name=interaction.user.name,
             icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/512px-YouTube_full-color_icon_%282017%29.svg.png"
         )
-        embed.set_image(url=get_image_youtube_video(current_song['url_yt']))
+        embed.set_image(url=thumbnail)
         embed.set_footer(text="Bot de música creado por Daeoro")
 
         await interaction.channel.send(embed=embed)
         
+        # 4. Preparación de FFmpeg 
         source = discord.FFmpegPCMAudio(
             executable="ffmpeg",
             source=audio_url,
             before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
         )
         
+        # 5. Callback al finalizar la canción
         def after_play(err):
             if err:
                 print(f"⚠️ Error al finalizar la canción: {err}")
@@ -47,56 +56,74 @@ async def play_song(current_url, interaction=None, client=None, voice_client=Non
                     client.loop
                 )
                 
+        # 6. Anunciar por VOZ la canción actual
         await actualSong(current_song['title'], current_song['artist'])
+        
         voice_client.play(discord.FFmpegPCMAudio("next_song.mp3"))
+        
         while voice_client.is_playing():
             await asyncio.sleep(0.5)        
+            
+        # 7. Reproducir la canción
         voice_client.play(source, after=after_play)
 
     except Exception as e:
         print("❌ Error al reproducir:", e)
         await interaction.channel.send("❌ Error al reproducir la canción")
-        await play_song(client.music_queues[interaction.guild_id][0]['url_yt'], interaction, client, voice_client)
         
         
 async def play_next_in_queue(guild_id, client, interaction, voice_client):
     """Saca la siguiente canción de la cola y la reproduce."""
+    # 1. Obtiene la cola actual
     queue = client.music_queues.get(guild_id, [])
+    
     if not queue:
         print("🎵 Cola vacía.")
         return
-
+    
+    # 2. Elimina la canción que terminó
     queue.pop(0)
+    
+    # 3. Obtén la siguiente canción
     next_url = queue[0] if queue else None 
     print(f"▶️ Siguiente canción: {next_url}")
+    
     await play_song(next_url['url_yt'], interaction, client, voice_client)
 
 async def setup(client: discord.Client):
-    @client.tree.command()
+    @client.tree.command(name="play", description="Reproduce una canción de YouTube")
     async def play(interaction: discord.Interaction, url: str):
+        # 1. Validar que el usuario esté en un canal de voz
         if not interaction.user.voice:
-            await interaction.response.send_message("Debes estar en un canal de voz.", ephemeral=True)
+            await interaction.response.send_message(
+                "⚠️ Debes estar en un canal de voz para usar este comando.",
+                ephemeral=True
+            )
             return
 
         voice_channel = interaction.user.voice.channel
+        
+        # 2. Responder inmediatamente para evitar timeout de interacción
         await interaction.response.send_message("🎶 Preparando para reproducir...", ephemeral=False)
 
+        # 3. Asegurar conexión de voz
         try:
             voice_client = discord.utils.get(client.voice_clients, guild=interaction.guild)
             if not voice_client:
                 voice_client = await voice_channel.connect()
                 print("✅ Conectado al canal de voz.")
+                # Saludar por primera vez
                 await sayHello()
                 voice_client.play(discord.FFmpegPCMAudio("tts.mp3"))
+                while voice_client.is_playing():
+                    await asyncio.sleep(0.5)
+                    
             elif voice_client.channel != voice_channel:
                 await voice_client.move_to(voice_channel)
         except Exception as e:
             print("❌ Error al conectar al canal de voz:", e)
             await interaction.channel.send("❌ No pude conectarme al canal de voz.")
             return
-        
-        while voice_client.is_playing():
-            await asyncio.sleep(0.5)
 
         # Esperar hasta que esté conectado realmente
         timeout = 5
@@ -107,16 +134,19 @@ async def setup(client: discord.Client):
                 print("⛔ Timeout esperando conexión de voz")
                 await interaction.channel.send("❌ No se pudo conectar al canal de voz a tiempo.")
                 return
-
-        # Si ya está reproduciendo, agregar a la cola
+            
+        # 4. Inicializar cola si no existe
         if interaction.guild_id not in client.music_queues:
             client.music_queues[interaction.guild_id] = []
+            
         queue = client.music_queues[interaction.guild_id]
+        
+        # 5. Si ya está reproduciendo: añadir a la cola
         if voice_client.is_playing():
-            song = GetInfoSongYTM(url, client, interaction.guild_id)
-            queue.insert(0,song)
-            await interaction.response.send_message(f"🎶 Agregado a la cola (posición {len(queue)}): {url}")
+            song_data = GetInfoSongYTM(url, client, interaction.guild_id)
+            queue.insert(1,song_data)
+            await interaction.channel.send(f"🎶 Agregado a la cola en la siguiente posición")
             return
         
-        # Función interna que reproduce una canción y busca la siguiente al terminar
+        # 6. Reproducir inmediatamente
         await play_song(url, interaction=interaction, client=client, voice_client=voice_client)
