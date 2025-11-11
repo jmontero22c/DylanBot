@@ -3,7 +3,7 @@ import edge_tts
 import os
 
 async def actualSong(song: str, artist: str = "No se, jaja"):
-    text = f"Ahora viene {song} de {artist}"
+    text = f"Ahora viene {song}, de {artist}"
     tts = edge_tts.Communicate(
         text=text,
         voice="es-CO-GonzaloNeural",

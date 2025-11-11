@@ -45,6 +45,8 @@ def get_youtube_id_url(url: str, is_playlist: bool = False) -> str:
                 video_id = url.split("/")[-1].split("?")[0]
             else:
                 video_id = url.split("/")[-1]
+                
+            video_id = video_id.replace("?","&")
             return video_id
     except Exception as e:
         return None

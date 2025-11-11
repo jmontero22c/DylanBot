@@ -5,12 +5,12 @@ from Speaker.SayHello import sayHello
 from utils.youtube import get_youtube_audio, get_image_youtube_video
 from utils.GetInfoSongFromYTMusic import GenerateQueueRecommended, GetInfoSongYTM
 
-async def play_song(current_url, interaction=None, client=None, voice_client=None):
+async def play_song(current_url, interaction=None, client=None, voice_client=None, isPlaylist=False):
     try:
         guild_id = interaction.guild_id
         
         # 1. Genera cola recomendada
-        GenerateQueueRecommended(current_url, client, guild_id)
+        GenerateQueueRecommended(current_url, client, guild_id, isPlaylist)
         
         queue = client.music_queues.get(guild_id, [])
         if not queue:
@@ -91,8 +91,9 @@ async def play_next_in_queue(guild_id, client, interaction, voice_client):
     await play_song(next_url['url_yt'], interaction, client, voice_client)
 
 async def setup(client: discord.Client):
-    @client.tree.command(name="play", description="Reproduce una canción de YouTube")
-    async def play(interaction: discord.Interaction, url: str):
+    @client.tree.command()
+    async def play(interaction: discord.Interaction, url: str, playlist: bool = False):
+        """Reproduce una canción de YouTube"""
         # 1. Validar que el usuario esté en un canal de voz
         if not interaction.user.voice:
             await interaction.response.send_message(
@@ -149,4 +150,4 @@ async def setup(client: discord.Client):
             return
         
         # 6. Reproducir inmediatamente
-        await play_song(url, interaction=interaction, client=client, voice_client=voice_client)
+        await play_song(url, interaction=interaction, client=client, voice_client=voice_client, isPlaylist=playlist)

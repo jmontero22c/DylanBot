@@ -15,5 +15,6 @@ class MyClient(discord.Client):
         self.music_queues = {} 
         
     async def setup_hook(self): 
+        # self.tree.clear_commands(guild=DEV_GUILD)
         self.tree.copy_global_to(guild=DEV_GUILD) 
         await self.tree.sync(guild=DEV_GUILD)
