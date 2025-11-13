@@ -23,7 +23,7 @@ def GenerateQueueRecommended(url, client, guild_id, is_playlist=False):
         print("Error", video_id)
         return
       
-    #No funciona con los mix de youtube
+    # No funciona con los mix de youtube
     if is_playlist:
         createQueueFromPlaylist(client, guild_id, video_id)
         return
@@ -54,8 +54,8 @@ def GenerateQueueRecommended(url, client, guild_id, is_playlist=False):
     SaveInfoJSONVideo(client.music_queues[guild_id], output_file="queue_info.json")
     
     
-def GetInfoSongYTM(url, client, guild_id):
-    video_id = url.split("v=")[1].split("&")[0]
+def GetInfoSongYTM(url):
+    video_id = get_youtube_id_url(url, is_playlist=False)
     watch_data = ytmusic.get_watch_playlist(videoId=video_id)
     tracks = watch_data.get("tracks", [])
     if tracks:

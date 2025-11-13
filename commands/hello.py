@@ -1,11 +1,13 @@
 import discord
 
+from GeminiAI.index import sayHelloAI
 from Speaker.SayHello import sayHello
 
 async def setup(client):
     @client.tree.command()
     async def hello(interaction: discord.Interaction):
         """Dylan te dice hola!"""
+        sayHelloAI()
         await interaction.response.send_message(f'Hi, {interaction.user.mention}')
         
         if not interaction.user.voice:

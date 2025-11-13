@@ -1,5 +1,6 @@
 import discord
 import asyncio
+from GeminiAI.index import sayHelloAI
 from Speaker.ActualSong import actualSong
 from Speaker.SayHello import sayHello
 from utils.youtube import get_youtube_audio, get_image_youtube_video
@@ -111,10 +112,12 @@ async def setup(client: discord.Client):
         try:
             voice_client = discord.utils.get(client.voice_clients, guild=interaction.guild)
             if not voice_client:
+                await sayHelloAI("Acabas de entrar al canal de voz para colocar musica, di hola de una manera divertida, sarcástica, grosera y agresiva")
+                
                 voice_client = await voice_channel.connect()
                 print("✅ Conectado al canal de voz.")
                 # Saludar por primera vez
-                await sayHello()
+                
                 voice_client.play(discord.FFmpegPCMAudio("tts.mp3"))
                 while voice_client.is_playing():
                     await asyncio.sleep(0.5)
@@ -144,7 +147,7 @@ async def setup(client: discord.Client):
         
         # 5. Si ya está reproduciendo: añadir a la cola
         if voice_client.is_playing():
-            song_data = GetInfoSongYTM(url, client, interaction.guild_id)
+            song_data = GetInfoSongYTM(url)
             queue.insert(1,song_data)
             await interaction.channel.send(f"🎶 Agregado a la cola en la siguiente posición")
             return
