@@ -2,43 +2,39 @@ from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import threading
 import os
+import asyncio
+import discord
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Configurar CORS simple para todas las rutas
-CORS(app, resources={
-    r"/api/*": {
-        "origins": "*",
-        "methods": ["GET", "POST", "PUT", "DELETE"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+CORS(app, origins="*", supports_credentials=False)
 
 # Agregar headers CORS a todas las respuestas
-@app.after_request
-def after_request(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept'
-    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,DELETE,OPTIONS,PUT'
-    response.headers['Access-Control-Max-Age'] = '3600'
-    return response
+# @app.after_request
+# def after_request(response):
+#     response.headers['Access-Control-Allow-Origin'] = '*'
+#     response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept'
+#     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,DELETE,OPTIONS,PUT'
+#     response.headers['Access-Control-Max-Age'] = '3600'
+#     return response
 
 # Manejar OPTIONS manualmente para preflight requests
-@app.route('/api/<path:path>', methods=['OPTIONS'])
-def handle_options(path):
-    response = jsonify({"success": True})
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept'
-    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,DELETE,OPTIONS,PUT'
-    return response
+# @app.route('/api/<path:path>', methods=['OPTIONS'])
+# def handle_options(path):
+#     response = jsonify({"success": True})
+#     response.headers['Access-Control-Allow-Origin'] = '*'
+#     response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept'
+#     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,DELETE,OPTIONS,PUT'
+#     return response
 
 # Decorador para agregar headers CORS a respuestas JSON
 def cors_jsonify(*args, **kwargs):
     """Crea una respuesta JSON con headers CORS"""
     response = jsonify(*args, **kwargs)
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT')
+    # response.headers.add('Access-Control-Allow-Origin', '*')
+    # response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept')
+    # response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT')
     return response
 
 # Referencia al cliente de Discord (se asigna desde main.py)
@@ -51,6 +47,7 @@ def init_web_server(client):
 
 def get_voice_client(guild_id):
     """Obtiene el voice_client para un guild específico"""
+    print(discord_client.voice_clients)
     if not discord_client:
         return None
     for vc in discord_client.voice_clients:
@@ -102,6 +99,7 @@ def get_status():
 @app.route('/api/guilds')
 def get_guilds():
     """Obtiene la lista de guilds donde está el bot"""
+    print(f"Entranddo a api guilds")
     if not discord_client:
         return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
@@ -115,7 +113,108 @@ def get_guilds():
             "connected": voice_client.is_connected() if voice_client else False
         })
     print(f"🌐 Guilds obtenidos para API: {len(guilds)} guilds")
-    return cors_jsonify({"success": True, "data": {"guilds": guilds}, "error": None})
+    return jsonify({"success": True, "data": {"guilds": guilds}, "error": None})
+
+@app.route('/api/channels/<int:guild_id>')
+def get_voice_channels(guild_id):
+    """Obtiene los canales de voz disponibles de un guild"""
+    if not discord_client:
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+
+    guild = discord_client.get_guild(guild_id)
+    if not guild:
+        return cors_jsonify({"success": False, "error": "Servidor no encontrado", "data": None})
+
+    # Obtener canales de voz (excluir AFK y categorías)
+    voice_channels = []
+    for channel in guild.voice_channels:
+        # Calcular usuarios conectados
+        member_count = len(channel.members)
+        voice_channels.append({
+            "id": channel.id,
+            "name": channel.name,
+            "member_count": member_count,
+            "user_limit": channel.user_limit if channel.user_limit > 0 else "∞"
+        })
+
+    # Ordenar por posición
+    voice_channels.sort(key=lambda x: x["name"])
+
+    return cors_jsonify({
+        "success": True,
+        "data": {"channels": voice_channels},
+        "error": None
+    })
+
+@app.route('/api/connect/<int:guild_id>', methods=['POST'])
+def connect_to_channel(guild_id):
+    """Conecta el bot a un canal de voz específico"""
+    if not discord_client:
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+
+    data = request.get_json()
+    if not data or 'channel_id' not in data:
+        return cors_jsonify({"success": False, "error": "ID de canal requerido", "data": None})
+
+    channel_id = data['channel_id']
+
+    guild = discord_client.get_guild(guild_id)
+    if not guild:
+        return cors_jsonify({"success": False, "error": "Servidor no encontrado", "data": None})
+
+    # Buscar el canal
+    channel = guild.get_channel(int(channel_id))
+    if not channel or not isinstance(channel, discord.VoiceChannel):
+        return cors_jsonify({"success": False, "error": "Canal de voz no encontrado", "data": None})
+
+    # Verificar si ya está conectado
+    voice_client = get_voice_client(guild_id)
+    if voice_client and voice_client.is_connected():
+        if voice_client.channel.id == channel.id:
+            return cors_jsonify({"success": True, "data": {"message": "Ya conectado a este canal"}, "error": None})
+        # Mover a otro canal
+        asyncio.run_coroutine_threadsafe(voice_client.move_to(channel), discord_client.loop)
+        return cors_jsonify({"success": True, "data": {"message": f"Movido a {channel.name}"}, "error": None})
+
+    # Conectar al canal (ejecutar en el loop del bot)
+    async def do_connect():
+        try:
+            await channel.connect(timeout=30.0, reconnect=True)
+            return True
+        except Exception as e:
+            print(f"Error conectando: {e}")
+            return False
+
+    future = asyncio.run_coroutine_threadsafe(do_connect(), discord_client.loop)
+    try:
+        success = future.result(timeout=35)
+        if success:
+            return cors_jsonify({"success": True, "data": {"message": f"Conectado a {channel.name}"}, "error": None})
+        else:
+            return cors_jsonify({"success": False, "error": "No se pudo conectar al canal", "data": None})
+    except Exception as e:
+        return cors_jsonify({"success": False, "error": f"Timeout al conectar: {str(e)}", "data": None})
+
+@app.route('/api/disconnect/<int:guild_id>', methods=['POST'])
+def disconnect_from_channel(guild_id):
+    """Desconecta el bot del canal de voz"""
+    if not discord_client:
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+
+    voice_client = get_voice_client(guild_id)
+    if not voice_client or not voice_client.is_connected():
+        return cors_jsonify({"success": False, "error": "No conectado a ningún canal", "data": None})
+
+    async def do_disconnect():
+        await voice_client.disconnect()
+        return True
+
+    future = asyncio.run_coroutine_threadsafe(do_disconnect(), discord_client.loop)
+    try:
+        future.result(timeout=10)
+        return cors_jsonify({"success": True, "data": {"message": "Desconectado"}, "error": None})
+    except Exception as e:
+        return cors_jsonify({"success": False, "error": str(e), "data": None})
 
 @app.route('/api/queue/<int:guild_id>')
 def get_queue(guild_id):
@@ -126,12 +225,22 @@ def get_queue(guild_id):
     queue = discord_client.music_queues.get(guild_id, [])
     voice_client = get_voice_client(guild_id)
 
+    # Información del canal actual
+    current_channel = None
+    if voice_client and voice_client.channel:
+        current_channel = {
+            "id": voice_client.channel.id,
+            "name": voice_client.channel.name
+        }
+
     return jsonify({
         "success": True,
         "data": {
             "queue": queue,
             "playing": voice_client.is_playing() if voice_client else False,
-            "paused": voice_client.is_paused() if voice_client else False
+            "paused": voice_client.is_paused() if voice_client else False,
+            "connected": voice_client.is_connected() if voice_client else False,
+            "current_channel": current_channel
         },
         "error": None
     })
@@ -249,6 +358,7 @@ def set_volume(guild_id):
         return jsonify({"success": False, "error": "Volumen debe estar entre 0 y 100", "data": None})
 
     voice_client = get_voice_client(guild_id)
+    print(guild_id)
     if not voice_client:
         return jsonify({"success": False, "error": "No conectado a un canal de voz", "data": None})
 

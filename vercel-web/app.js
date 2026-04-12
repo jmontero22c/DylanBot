@@ -143,28 +143,125 @@ async function loadGuilds() {
     }
 }
 
-// Seleccionar un guild
+let currentGuildName = '';
+let currentChannelId = null;
+
+// Seleccionar un guild - ahora muestra selector de canales
 function selectGuild(guildId, guildName) {
     currentGuildId = guildId;
-    document.getElementById('current-guild-name').textContent = guildName;
+    currentGuildName = guildName;
 
     document.getElementById('guild-selector').style.display = 'none';
-    document.getElementById('control-panel').style.display = 'block';
+    document.getElementById('channel-guild-name').textContent = guildName;
+    document.getElementById('channel-selector').style.display = 'block';
 
-    loadQueue();
-    startPolling();
+    loadChannels();
 }
 
-// Volver al selector
-document.getElementById('btn-back')?.addEventListener('click', () => {
-    currentGuildId = null;
+// Cargar canales disponibles
+async function loadChannels() {
+    if (!currentGuildId) return;
+
+    const channelsList = document.getElementById('channels-list');
+    channelsList.innerHTML = '<div class="loading">Cargando canales...</div>';
+
+    try {
+        const data = await fetchAPI(`/api/channels/${currentGuildId}`);
+
+        if (!data.channels || data.channels.length === 0) {
+            channelsList.innerHTML = '<div class="empty-queue">No hay canales de voz disponibles en este servidor</div>';
+            return;
+        }
+
+        channelsList.innerHTML = data.channels.map(channel => `
+            <div class="channel-card" onclick="selectChannel(${channel.id}, '${channel.name.replace(/'/g, "\\'")}')">
+                <div class="channel-icon">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <div class="channel-info">
+                    <h4>${channel.name}</h4>
+                    <p>
+                        <i class="fas fa-users"></i> ${channel.member_count} usuarios
+                        ${channel.user_limit !== '∞' ? `/ ${channel.user_limit} límite` : ''}
+                    </p>
+                </div>
+                <div class="channel-action">
+                    <button class="btn-connect-channel">
+                        <i class="fas fa-plug"></i> Conectar
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error cargando canales:', error);
+        channelsList.innerHTML = '<div class="empty-queue">Error al cargar canales</div>';
+    }
+}
+
+// Seleccionar canal y conectar
+async function selectChannel(channelId, channelName) {
+    if (!currentGuildId) return;
+
+    showToast(`Conectando a ${channelName}...`, 'info');
+
+    try {
+        await fetchAPI(`/api/connect/${currentGuildId}`, {
+            method: 'POST',
+            body: JSON.stringify({ channel_id: channelId })
+        });
+
+        currentChannelId = channelId;
+        showToast(`Conectado a ${channelName}`, 'success');
+
+        // Mostrar panel de control
+        document.getElementById('channel-selector').style.display = 'none';
+        document.getElementById('current-guild-name').textContent = `${currentGuildName} - ${channelName}`;
+        document.getElementById('control-panel').style.display = 'block';
+
+        loadQueue();
+        startPolling();
+    } catch (error) {
+        console.error('Error conectando:', error);
+        showToast('Error al conectar al canal', 'error');
+    }
+}
+
+// Volver a selector de canales
+function showChannelSelector() {
     stopPolling();
-
     document.getElementById('control-panel').style.display = 'none';
-    document.getElementById('guild-selector').style.display = 'block';
+    document.getElementById('channel-selector').style.display = 'block';
+    loadChannels();
+}
 
+// Desconectar del canal actual
+async function disconnectFromChannel() {
+    if (!currentGuildId) return;
+    try {
+        await fetchAPI(`/api/disconnect/${currentGuildId}`, { method: 'POST' });
+        showToast('Desconectado del canal', 'info');
+        showChannelSelector();
+    } catch (error) {
+        console.error('Error desconectando:', error);
+    }
+}
+
+// Volver al selector de servidores
+function showGuildSelector() {
+    stopPolling();
+    currentGuildId = null;
+    currentGuildName = '';
+    currentChannelId = null;
+    document.getElementById('channel-selector').style.display = 'none';
+    document.getElementById('guild-selector').style.display = 'block';
     loadGuilds();
-});
+}
+
+// Event listeners para botones de navegación
+document.getElementById('btn-back')?.addEventListener('click', showChannelSelector);
+document.getElementById('btn-back-guilds')?.addEventListener('click', showGuildSelector);
+document.getElementById('btn-refresh-channels')?.addEventListener('click', loadChannels);
+document.getElementById('btn-change-channel')?.addEventListener('click', disconnectFromChannel);
 
 // Cargar cola y estado
 async function loadQueue() {
@@ -402,4 +499,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Exponer funciones globales para los onclick en HTML
 window.selectGuild = selectGuild;
+window.selectChannel = selectChannel;
 window.removeFromQueue = removeFromQueue;

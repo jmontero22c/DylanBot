@@ -188,6 +188,160 @@ body {
     border: 1px solid var(--border-color);
 }
 
+/* Channel Selector */
+.channel-selector {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.channel-selector h3 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.channel-selector h3 i {
+    color: var(--primary-color);
+    margin-right: 10px;
+}
+
+.channel-help {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+}
+
+.channels-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.channel-card {
+    background: var(--bg-input);
+    border-radius: 12px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.channel-card:hover {
+    border-color: var(--primary-color);
+    transform: translateX(5px);
+    box-shadow: var(--shadow);
+}
+
+.channel-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: var(--primary-color);
+}
+
+.channel-info {
+    flex: 1;
+}
+
+.channel-info h4 {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+}
+
+.channel-info p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.channel-info p i {
+    margin-right: 5px;
+}
+
+.channel-action {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.channel-card:hover .channel-action {
+    opacity: 1;
+}
+
+.btn-connect-channel {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-connect-channel:hover {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+}
+
+.btn-secondary {
+    padding: 12px 24px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-secondary:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.channel-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+@media (max-width: 768px) {
+    .channel-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+
+    .channel-action {
+        opacity: 1;
+    }
+
+    .channel-card:hover {
+        transform: none;
+    }
+}
+
 .guild-selector h2 {
     margin-bottom: 25px;
     font-size: 1.3rem;
@@ -302,6 +456,24 @@ body {
 
 .guild-info h2 {
     flex: 1;
+}
+
+.guild-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.guild-actions .btn-secondary {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .guild-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
 }
 
 /* Player Card */
