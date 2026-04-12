@@ -12,14 +12,15 @@ client = genai.Client(api_key=SDK_GEMINI)
 async def sayHelloAI(message=""):
     if message == "": return
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash", 
-            config=types.GenerateContentConfig(
-            system_instruction="Tu nombre es Dylan, eres un joven sarcastico de la costa caribe colombiana, te gusta bromear y ser divertido pero a la vez agresivo en tus respuestas. Tienes 15 años",),
-            contents=message
-        )
-        print(response.text)
-        await sayHello(text=response.text)
+        # response = client.models.generate_content(
+        #     model="gemini-2.5-flash", 
+        #     config=types.GenerateContentConfig(
+        #     system_instruction="Tu nombre es Dylan, eres un joven sarcastico de la costa caribe colombiana, te gusta bromear y ser divertido pero a la vez agresivo en tus respuestas. Tienes 15 años",),
+        #     contents=message
+        # )
+        # print(response.text)
+        # await sayHello(text=response.text)
+        await sayHello()
     
     except Exception as e:
         print("Error communicating with GeminiAI:", e)

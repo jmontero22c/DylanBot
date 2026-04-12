@@ -1,8 +1,7 @@
-from gtts import gTTS
 import edge_tts
-import os
 
-async def sayHello(text="Buenas Perro hijueputa, cabeza e verga... Masca picha"):
+async def sayVersicle(text):
+    text = "Versiculo del dia. " + text
     try:
         tts = edge_tts.Communicate(
             text=text,
@@ -11,7 +10,7 @@ async def sayHello(text="Buenas Perro hijueputa, cabeza e verga... Masca picha")
             rate="+12%",   # más rápido = más juvenil
             pitch="+30Hz",  # más agudo = suena más joven
         )
-        await tts.save("tts.mp3")
+        await tts.save("versicle.mp3")
 
     except Exception as e:
-        print("❌ Error en TTS:", e)
+        print("❌ Error en TTS leyendo versiculo:", e)

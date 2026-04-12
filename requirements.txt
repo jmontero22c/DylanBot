@@ -3,3 +3,4 @@ flask
 yt-dlp #yt-dlp o wavelink
 ytmusicapi
 python-dotenv
+flask-cors

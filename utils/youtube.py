@@ -6,28 +6,41 @@ def get_image_youtube_video(url):
         'quiet': True,
         'noplaylist': True,
         'extract_flat': False,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android']
+            }
+        }
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return info.get('thumbnail','Couldnt find thumbnail')
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return info.get('thumbnail','Couldnt find thumbnail')
+    except Exception as e:
+            print("❌ Error al obtener miniatura de YouTube:", e)
+            return None
 
 def get_youtube_audio(url):
     ydl_opts = {
-        'format': 'bestaudio',
+        'format': 'bestaudio[ext=m4a]/bestaudio/best',
         'quiet': True,
         'noplaylist': True,
         'extract_flat': False,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios']  # o ['android']
+                'player_client': ['android', 'ios']
             }
         }
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return info['url']
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return info['url']
+    except Exception as e:
+            print("❌ Error al obtener audio de YouTube:", e)
+            return None
     
 def get_youtube_id_url(url: str, is_playlist: bool = False) -> str:
     try:

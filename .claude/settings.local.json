@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la *.py commands/*.py models/*.py utils/*.py Speaker/*.py GeminiAI/*.py Discord/*.py)",
+      "Bash(pip install:*)"
+    ]
+  }
+}

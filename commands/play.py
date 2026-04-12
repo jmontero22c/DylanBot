@@ -1,10 +1,18 @@
+import random
 import discord
 import asyncio
+import shutil
 from GeminiAI.index import sayHelloAI
+
+# Verificar que FFmpeg esté disponible
+if not shutil.which("ffmpeg"):
+    print("⚠️ ADVERTENCIA: FFmpeg no encontrado en PATH. El bot no podrá reproducir audio.")
 from Speaker.ActualSong import actualSong
 from Speaker.SayHello import sayHello
 from utils.youtube import get_youtube_audio, get_image_youtube_video
 from utils.GetInfoSongFromYTMusic import GenerateQueueRecommended, GetInfoSongYTM
+
+la_mamadota_audio_paths = ["audios/LaMamadotaFM-01.m4a","audios/LaMamadotaFM-02.m4a"]
 
 async def play_song(current_url, interaction=None, client=None, voice_client=None, isPlaylist=False):
     try:
@@ -57,13 +65,12 @@ async def play_song(current_url, interaction=None, client=None, voice_client=Non
                     client.loop
                 )
                 
-        # 6. Anunciar por VOZ la canción actual
-        await actualSong(current_song['title'], current_song['artist'])
+        # 6. Anunciar por VOZ la canción actual (Vamos a ignorar esto por ahora)
+        # await actualSong(current_song['title'], current_song['artist'])
+        # voice_client.play(discord.FFmpegPCMAudio("next_song.mp3"))
         
-        voice_client.play(discord.FFmpegPCMAudio("next_song.mp3"))
-        
-        while voice_client.is_playing():
-            await asyncio.sleep(0.5)        
+        # while voice_client.is_playing():
+        #     await asyncio.sleep(0.5)        
             
         # 7. Reproducir la canción
         voice_client.play(source, after=after_play)
@@ -112,32 +119,46 @@ async def setup(client: discord.Client):
         try:
             voice_client = discord.utils.get(client.voice_clients, guild=interaction.guild)
             if not voice_client:
-                await sayHelloAI("Acabas de entrar al canal de voz para colocar musica, di hola de una manera divertida, sarcástica, grosera y agresiva")
-                
-                voice_client = await voice_channel.connect()
-                print("✅ Conectado al canal de voz.")
+                print(f"🔄 Intentando conectar a: {voice_channel.name} (ID: {voice_channel.id})")
+                voice_client = await voice_channel.connect(timeout=30.0, reconnect=True)
+                print(f"✅ Conectado al canal de voz: {voice_channel.name}")
+                # Esperar un momento para que la conexión se estabilice
+                await asyncio.sleep(0.5)
                 # Saludar por primera vez
-                
-                voice_client.play(discord.FFmpegPCMAudio("tts.mp3"))
-                while voice_client.is_playing():
-                    await asyncio.sleep(0.5)
+                try:
+                    num_audio = random.randint(0,1)
+                    audio_path = f"resources/audios/LaMamadotaFM-0{num_audio}.m4a"
+                    print(f"🎵 Intentando reproducir audio de saludo: {audio_path}")
+                    voice_client.play(discord.FFmpegPCMAudio(audio_path))
+                    while voice_client.is_playing():
+                        await asyncio.sleep(0.5)
+                except Exception as e:
+                    print(f"⚠️ No se pudo reproducir el audio de saludo: {e}")
+                    # Continuar de todos modos, no es crítico
                     
             elif voice_client.channel != voice_channel:
                 await voice_client.move_to(voice_channel)
         except Exception as e:
+            import traceback
             print("❌ Error al conectar al canal de voz:", e)
-            await interaction.channel.send("❌ No pude conectarme al canal de voz.")
+            traceback.print_exc()
+            await interaction.channel.send(f"❌ Error al conectar: {str(e)}")
             return
 
         # Esperar hasta que esté conectado realmente
-        timeout = 5
-        while not voice_client.is_connected():
-            await asyncio.sleep(0.1)
-            timeout -= 0.1
-            if timeout <= 0:
+        if voice_client:
+            timeout = 5.0
+            while not voice_client.is_connected() and timeout > 0:
+                await asyncio.sleep(0.1)
+                timeout -= 0.1
+            if not voice_client.is_connected():
                 print("⛔ Timeout esperando conexión de voz")
                 await interaction.channel.send("❌ No se pudo conectar al canal de voz a tiempo.")
                 return
+        else:
+            print("⛔ voice_client es None después de intentar conectar")
+            await interaction.channel.send("❌ Error: No se pudo establecer conexión de voz.")
+            return
             
         # 4. Inicializar cola si no existe
         if interaction.guild_id not in client.music_queues:
