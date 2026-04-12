@@ -29,7 +29,7 @@ async function fetchAPI(endpoint, options = {}) {
         const response = await fetch(`${API_BASE}${endpoint}`, {
             headers: {
                 'Content-Type': 'application/json',
-                "ngrok-skip-browser-warning": "69420"
+                'ngrok-skip-browser-warning': '69420'
             },
             ...options
         });
