@@ -4,14 +4,42 @@ import threading
 import os
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-# Configurar CORS para permitir cualquier origen (necesario para Vercel)
+
+# Configurar CORS simple para todas las rutas
 CORS(app, resources={
     r"/api/*": {
         "origins": "*",
-        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
+
+# Agregar headers CORS a todas las respuestas
+@app.after_request
+def after_request(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,DELETE,OPTIONS,PUT'
+    response.headers['Access-Control-Max-Age'] = '3600'
+    return response
+
+# Manejar OPTIONS manualmente para preflight requests
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    response = jsonify({"success": True})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,DELETE,OPTIONS,PUT'
+    return response
+
+# Decorador para agregar headers CORS a respuestas JSON
+def cors_jsonify(*args, **kwargs):
+    """Crea una respuesta JSON con headers CORS"""
+    response = jsonify(*args, **kwargs)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS,PUT')
+    return response
 
 # Referencia al cliente de Discord (se asigna desde main.py)
 discord_client = None
@@ -46,7 +74,7 @@ def index():
 def get_status():
     """Obtiene el estado actual del bot en todos los guilds"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     guilds = []
     for guild in discord_client.guilds:
@@ -75,7 +103,7 @@ def get_status():
 def get_guilds():
     """Obtiene la lista de guilds donde está el bot"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     guilds = []
     for guild in discord_client.guilds:
@@ -86,14 +114,14 @@ def get_guilds():
             "icon": str(guild.icon.url) if guild.icon else None,
             "connected": voice_client.is_connected() if voice_client else False
         })
-
-    return jsonify({"success": True, "data": {"guilds": guilds}, "error": None})
+    print(f"🌐 Guilds obtenidos para API: {len(guilds)} guilds")
+    return cors_jsonify({"success": True, "data": {"guilds": guilds}, "error": None})
 
 @app.route('/api/queue/<int:guild_id>')
 def get_queue(guild_id):
     """Obtiene la cola de reproducción de un guild"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     queue = discord_client.music_queues.get(guild_id, [])
     voice_client = get_voice_client(guild_id)
@@ -112,7 +140,7 @@ def get_queue(guild_id):
 def play_song(guild_id):
     """Agrega una canción a la cola"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     data = request.get_json()
     if not data or 'url' not in data:
@@ -161,7 +189,7 @@ def play_song(guild_id):
 def skip_song(guild_id):
     """Salta a la siguiente canción"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     voice_client = get_voice_client(guild_id)
     if not voice_client:
@@ -178,7 +206,7 @@ def skip_song(guild_id):
 def pause_song(guild_id):
     """Pausa la reproducción"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     voice_client = get_voice_client(guild_id)
     if not voice_client:
@@ -194,7 +222,7 @@ def pause_song(guild_id):
 def resume_song(guild_id):
     """Reanuda la reproducción"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     voice_client = get_voice_client(guild_id)
     if not voice_client:
@@ -210,7 +238,7 @@ def resume_song(guild_id):
 def set_volume(guild_id):
     """Ajusta el volumen (0-100)"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     data = request.get_json()
     if not data or 'volume' not in data:
@@ -234,7 +262,7 @@ def set_volume(guild_id):
 def clear_queue(guild_id):
     """Limpia toda la cola excepto la canción actual"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     if guild_id in discord_client.music_queues:
         queue = discord_client.music_queues[guild_id]
@@ -249,7 +277,7 @@ def clear_queue(guild_id):
 def remove_from_queue(guild_id, index):
     """Elimina una canción específica de la cola (no puede ser la que está sonando)"""
     if not discord_client:
-        return jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
 
     if guild_id not in discord_client.music_queues:
         return jsonify({"success": False, "error": "No hay cola para este guild", "data": None})
