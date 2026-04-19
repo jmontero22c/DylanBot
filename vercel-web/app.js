@@ -1,8 +1,21 @@
-// Dylan Bot Web Control Panel - Vercel Version
-// Frontend para Vercel que se conecta a API local via ngrok
+// Dylan Bot Web Control Panel - Unified Version
+// Funciona tanto en local (Flask) como en Vercel (con ngrok)
 
-let API_BASE = localStorage.getItem('dylan_bot_api_url') || '';
+// Detectar si estamos en modo local o Vercel
+const isLocal = window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
+                window.location.protocol === 'file:';
+
+// Configurar API_BASE según el entorno
+let API_BASE = '';
+if (!isLocal) {
+    // En Vercel/u otro host externo, usar localStorage
+    API_BASE = localStorage.getItem('dylan_bot_api_url') || '';
+}
+
 let currentGuildId = null;
+let currentGuildName = '';
+let currentChannelId = null;
 let pollingInterval = null;
 let isPaused = false;
 
@@ -25,16 +38,14 @@ function showToast(message, type = 'info') {
 }
 
 async function fetchAPI(endpoint, options = {}) {
-    if (!API_BASE) {
-        throw new Error('API no configurada');
-    }
-
     try {
+        const headers = {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': '69420'
+        };
+
         const response = await fetch(`${API_BASE}${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-            },
+            headers,
             ...options
         });
 
@@ -121,8 +132,10 @@ async function loadGuilds() {
             return;
         }
 
-        guildsList.innerHTML = data.guilds.map(guild => `
-            <div class="guild-card" onclick="selectGuild(${guild.id}, '${guild.name.replace(/'/g, "\\'")}')">
+        guildsList.innerHTML = data.guilds.map(guild => {
+            const id = guild.id;
+            return `
+            <div class="guild-card" onclick="selectGuild('${id}', '${guild.name.replace(/'/g, "\\'")}')">
                 <img src="${guild.icon || ''}" alt="${guild.name}" class="guild-icon"
                      onerror="this.src=''; this.innerHTML='<i class=\\'fas fa-server\\'></i>'">
                 <div class="guild-info-card">
@@ -134,7 +147,8 @@ async function loadGuilds() {
                     </p>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         updateConnectionStatus(true, 'Conectado');
     } catch (error) {
@@ -142,9 +156,6 @@ async function loadGuilds() {
         updateConnectionStatus(false, 'Error de conexión');
     }
 }
-
-let currentGuildName = '';
-let currentChannelId = null;
 
 // Seleccionar un guild - ahora muestra selector de canales
 function selectGuild(guildId, guildName) {
@@ -256,12 +267,6 @@ function showGuildSelector() {
     document.getElementById('guild-selector').style.display = 'block';
     loadGuilds();
 }
-
-// Event listeners para botones de navegación
-document.getElementById('btn-back')?.addEventListener('click', showChannelSelector);
-document.getElementById('btn-back-guilds')?.addEventListener('click', showGuildSelector);
-document.getElementById('btn-refresh-channels')?.addEventListener('click', loadChannels);
-document.getElementById('btn-change-channel')?.addEventListener('click', disconnectFromChannel);
 
 // Cargar cola y estado
 async function loadQueue() {
@@ -452,13 +457,18 @@ function stopPolling() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificar si ya hay API configurada
-    if (API_BASE) {
+    // Si es local, ocultar pantalla de config y mostrar main directamente
+    if (isLocal) {
+        showMainScreen();
+        loadGuilds();
+    } else if (API_BASE) {
+        // En Vercel con API configurada
         document.getElementById('api-url').value = API_BASE;
         document.getElementById('api-url-display').textContent = `Conectado a: ${API_BASE}`;
         showMainScreen();
         loadGuilds();
     } else {
+        // En Vercel sin API configurada
         showConfigScreen();
     }
 
@@ -469,8 +479,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('btn-reconfigure')?.addEventListener('click', () => {
-        showConfigScreen();
+        if (isLocal) {
+            showToast('Modo local: no se requiere configuración', 'info');
+        } else {
+            showConfigScreen();
+        }
     });
+
+    // Navegación
+    document.getElementById('btn-back')?.addEventListener('click', showChannelSelector);
+    document.getElementById('btn-back-guilds')?.addEventListener('click', showGuildSelector);
+    document.getElementById('btn-refresh-channels')?.addEventListener('click', loadChannels);
+    document.getElementById('btn-change-channel')?.addEventListener('click', disconnectFromChannel);
 
     // Botones de control
     document.getElementById('btn-skip')?.addEventListener('click', skipSong);

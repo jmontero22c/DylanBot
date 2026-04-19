@@ -35,6 +35,62 @@ body {
     padding: 20px;
 }
 
+/* API Config Section */
+.api-config {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.api-config-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 40px;
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-color);
+}
+
+.api-config-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--primary-color);
+}
+
+.api-config-content h3 i {
+    margin-right: 10px;
+}
+
+.api-config-content p {
+    color: var(--text-secondary);
+    margin-bottom: 25px;
+}
+
+.api-help {
+    margin-top: 25px;
+    padding: 15px;
+    background: var(--bg-input);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.api-help code {
+    background: var(--bg-dark);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--secondary-color);
+    font-family: 'Courier New', monospace;
+}
+
+.api-help i {
+    color: var(--warning-color);
+    margin-right: 8px;
+}
+
 /* Header */
 .header {
     background: var(--bg-card);
@@ -49,6 +105,28 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-config {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.btn-config:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
 }
 
 .logo {
@@ -108,6 +186,160 @@ body {
     padding: 30px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border-color);
+}
+
+/* Channel Selector */
+.channel-selector {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.channel-selector h3 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.channel-selector h3 i {
+    color: var(--primary-color);
+    margin-right: 10px;
+}
+
+.channel-help {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+}
+
+.channels-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+.channel-card {
+    background: var(--bg-input);
+    border-radius: 12px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.channel-card:hover {
+    border-color: var(--primary-color);
+    transform: translateX(5px);
+    box-shadow: var(--shadow);
+}
+
+.channel-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: var(--primary-color);
+}
+
+.channel-info {
+    flex: 1;
+}
+
+.channel-info h4 {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+}
+
+.channel-info p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.channel-info p i {
+    margin-right: 5px;
+}
+
+.channel-action {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.channel-card:hover .channel-action {
+    opacity: 1;
+}
+
+.btn-connect-channel {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-connect-channel:hover {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+}
+
+.btn-secondary {
+    padding: 12px 24px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-secondary:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.channel-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+@media (max-width: 768px) {
+    .channel-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+
+    .channel-action {
+        opacity: 1;
+    }
+
+    .channel-card:hover {
+        transform: none;
+    }
 }
 
 .guild-selector h2 {
@@ -224,6 +456,24 @@ body {
 
 .guild-info h2 {
     flex: 1;
+}
+
+.guild-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.guild-actions .btn-secondary {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .guild-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
 }
 
 /* Player Card */
@@ -584,6 +834,12 @@ body {
     font-size: 0.9rem;
 }
 
+.api-url-display {
+    font-size: 0.8rem;
+    margin-top: 10px;
+    opacity: 0.7;
+}
+
 /* Toast Notifications */
 .toast-container {
     position: fixed;
@@ -676,5 +932,9 @@ body {
 
     .queue-item-remove {
         opacity: 1;
+    }
+
+    .api-config-content {
+        padding: 25px;
     }
 }

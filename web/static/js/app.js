@@ -1,8 +1,21 @@
-// Dylan Bot Web Control Panel
-// JavaScript principal para la interfaz web
+// Dylan Bot Web Control Panel - Unified Version
+// Funciona tanto en local (Flask) como en Vercel (con ngrok)
 
-const API_BASE = '';
+// Detectar si estamos en modo local o Vercel
+const isLocal = window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
+                window.location.protocol === 'file:';
+
+// Configurar API_BASE según el entorno
+let API_BASE = '';
+if (!isLocal) {
+    // En Vercel/u otro host externo, usar localStorage
+    API_BASE = localStorage.getItem('dylan_bot_api_url') || '';
+}
+
 let currentGuildId = null;
+let currentGuildName = '';
+let currentChannelId = null;
 let pollingInterval = null;
 let isPaused = false;
 
@@ -26,11 +39,13 @@ function showToast(message, type = 'info') {
 
 async function fetchAPI(endpoint, options = {}) {
     try {
+        const headers = {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': '69420'
+        };
+
         const response = await fetch(`${API_BASE}${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': '69420'
-            },
+            headers,
             ...options
         });
 
@@ -66,6 +81,45 @@ function updateConnectionStatus(connected, message) {
     text.textContent = message;
 }
 
+// Configuración inicial
+function showConfigScreen() {
+    document.getElementById('api-config').style.display = 'flex';
+    document.getElementById('main-header').style.display = 'none';
+    document.getElementById('main-content').style.display = 'none';
+    document.getElementById('main-footer').style.display = 'none';
+}
+
+function showMainScreen() {
+    document.getElementById('api-config').style.display = 'none';
+    document.getElementById('main-header').style.display = 'block';
+    document.getElementById('main-content').style.display = 'block';
+    document.getElementById('main-footer').style.display = 'block';
+}
+
+function connectAPI() {
+    const urlInput = document.getElementById('api-url');
+    let url = urlInput.value.trim();
+
+    if (!url) {
+        showToast('Ingresa una URL válida', 'error');
+        return;
+    }
+
+    // Asegurar que termina sin slash
+    if (url.endsWith('/')) {
+        url = url.slice(0, -1);
+    }
+
+    API_BASE = url;
+    localStorage.setItem('dylan_bot_api_url', API_BASE);
+
+    // Actualizar display de URL
+    document.getElementById('api-url-display').textContent = `Conectado a: ${API_BASE}`;
+
+    showMainScreen();
+    loadGuilds();
+}
+
 // Cargar lista de guilds
 async function loadGuilds() {
     try {
@@ -78,8 +132,10 @@ async function loadGuilds() {
             return;
         }
 
-        guildsList.innerHTML = data.guilds.map(guild => `
-            <div class="guild-card" onclick="selectGuild(${guild.id}, '${guild.name.replace(/'/g, "\\'")}')">
+        guildsList.innerHTML = data.guilds.map(guild => {
+            const id = guild.id;
+            return `
+            <div class="guild-card" onclick="selectGuild('${id}', '${guild.name.replace(/'/g, "\\'")}')">
                 <img src="${guild.icon || ''}" alt="${guild.name}" class="guild-icon"
                      onerror="this.src=''; this.innerHTML='<i class=\\'fas fa-server\\'></i>'">
                 <div class="guild-info-card">
@@ -91,7 +147,8 @@ async function loadGuilds() {
                     </p>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         updateConnectionStatus(true, 'Conectado');
     } catch (error) {
@@ -100,28 +157,116 @@ async function loadGuilds() {
     }
 }
 
-// Seleccionar un guild
+// Seleccionar un guild - ahora muestra selector de canales
 function selectGuild(guildId, guildName) {
     currentGuildId = guildId;
-    document.getElementById('current-guild-name').textContent = guildName;
+    currentGuildName = guildName;
 
     document.getElementById('guild-selector').style.display = 'none';
-    document.getElementById('control-panel').style.display = 'block';
+    document.getElementById('channel-guild-name').textContent = guildName;
+    document.getElementById('channel-selector').style.display = 'block';
 
-    loadQueue();
-    startPolling();
+    loadChannels();
 }
 
-// Volver al selector
-document.getElementById('btn-back')?.addEventListener('click', () => {
-    currentGuildId = null;
+// Cargar canales disponibles
+async function loadChannels() {
+    if (!currentGuildId) return;
+
+    const channelsList = document.getElementById('channels-list');
+    channelsList.innerHTML = '<div class="loading">Cargando canales...</div>';
+
+    try {
+        const data = await fetchAPI(`/api/channels/${currentGuildId}`);
+
+        if (!data.channels || data.channels.length === 0) {
+            channelsList.innerHTML = '<div class="empty-queue">No hay canales de voz disponibles en este servidor</div>';
+            return;
+        }
+
+        channelsList.innerHTML = data.channels.map(channel => `
+            <div class="channel-card" onclick="selectChannel('${channel.id}', '${channel.name.replace(/'/g, "\\'")}')">
+                <div class="channel-icon">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <div class="channel-info">
+                    <h4>${channel.name}</h4>
+                    <p>
+                        <i class="fas fa-users"></i> ${channel.member_count} usuarios
+                        ${channel.user_limit !== '∞' ? `/ ${channel.user_limit} límite` : ''}
+                    </p>
+                </div>
+                <div class="channel-action">
+                    <button class="btn-connect-channel">
+                        <i class="fas fa-plug"></i> Conectar
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error cargando canales:', error);
+        channelsList.innerHTML = '<div class="empty-queue">Error al cargar canales</div>';
+    }
+}
+
+// Seleccionar canal y conectar
+async function selectChannel(channelId, channelName) {
+    if (!currentGuildId) return;
+
+    showToast(`Conectando a ${channelName}...`, 'info');
+
+    try {
+        await fetchAPI(`/api/connect/${currentGuildId}`, {
+            method: 'POST',
+            body: JSON.stringify({ channel_id: channelId })
+        });
+
+        currentChannelId = channelId;
+        showToast(`Conectado a ${channelName}`, 'success');
+
+        // Mostrar panel de control
+        document.getElementById('channel-selector').style.display = 'none';
+        document.getElementById('current-guild-name').textContent = `${currentGuildName} - ${channelName}`;
+        document.getElementById('control-panel').style.display = 'block';
+
+        loadQueue();
+        startPolling();
+    } catch (error) {
+        console.error('Error conectando:', error);
+        showToast('Error al conectar al canal', 'error');
+    }
+}
+
+// Volver a selector de canales
+function showChannelSelector() {
     stopPolling();
-
     document.getElementById('control-panel').style.display = 'none';
-    document.getElementById('guild-selector').style.display = 'block';
+    document.getElementById('channel-selector').style.display = 'block';
+    loadChannels();
+}
 
+// Desconectar del canal actual
+async function disconnectFromChannel() {
+    if (!currentGuildId) return;
+    try {
+        await fetchAPI(`/api/disconnect/${currentGuildId}`, { method: 'POST' });
+        showToast('Desconectado del canal', 'info');
+        showChannelSelector();
+    } catch (error) {
+        console.error('Error desconectando:', error);
+    }
+}
+
+// Volver al selector de servidores
+function showGuildSelector() {
+    stopPolling();
+    currentGuildId = null;
+    currentGuildName = '';
+    currentChannelId = null;
+    document.getElementById('channel-selector').style.display = 'none';
+    document.getElementById('guild-selector').style.display = 'block';
     loadGuilds();
-});
+}
 
 // Cargar cola y estado
 async function loadQueue() {
@@ -312,7 +457,40 @@ function stopPolling() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    loadGuilds();
+    // Si es local, ocultar pantalla de config y mostrar main directamente
+    if (isLocal) {
+        showMainScreen();
+        loadGuilds();
+    } else if (API_BASE) {
+        // En Vercel con API configurada
+        document.getElementById('api-url').value = API_BASE;
+        document.getElementById('api-url-display').textContent = `Conectado a: ${API_BASE}`;
+        showMainScreen();
+        loadGuilds();
+    } else {
+        // En Vercel sin API configurada
+        showConfigScreen();
+    }
+
+    // Configuración
+    document.getElementById('btn-connect')?.addEventListener('click', connectAPI);
+    document.getElementById('api-url')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') connectAPI();
+    });
+
+    document.getElementById('btn-reconfigure')?.addEventListener('click', () => {
+        if (isLocal) {
+            showToast('Modo local: no se requiere configuración', 'info');
+        } else {
+            showConfigScreen();
+        }
+    });
+
+    // Navegación
+    document.getElementById('btn-back')?.addEventListener('click', showChannelSelector);
+    document.getElementById('btn-back-guilds')?.addEventListener('click', showGuildSelector);
+    document.getElementById('btn-refresh-channels')?.addEventListener('click', loadChannels);
+    document.getElementById('btn-change-channel')?.addEventListener('click', disconnectFromChannel);
 
     // Botones de control
     document.getElementById('btn-skip')?.addEventListener('click', skipSong);
@@ -341,4 +519,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Exponer funciones globales para los onclick en HTML
 window.selectGuild = selectGuild;
+window.selectChannel = selectChannel;
 window.removeFromQueue = removeFromQueue;
