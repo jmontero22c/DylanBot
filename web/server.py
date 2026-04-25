@@ -438,6 +438,11 @@ def set_volume(guild_id):
 
     # Convertir 0-100 a 0.0-1.0
     volume_float = volume / 100.0
+
+    # Verificar si el source ya está envuelto en PCMVolumeTransformer
+    if not isinstance(voice_client.source, discord.PCMVolumeTransformer):
+        voice_client.source = discord.PCMVolumeTransformer(voice_client.source)
+
     voice_client.source.volume = volume_float
 
     return jsonify({"success": True, "data": {"message": f"Volumen ajustado a {volume}%"}, "error": None})
@@ -503,12 +508,13 @@ async def play_next_song(guild_id, voice_client):
             print("❌ No se pudo obtener el audio de la siguiente canción")
             return
 
-        # Crear source y reproducir
+        # Crear source y reproducir (envuelto en PCMVolumeTransformer para control de volumen)
         source = discord.FFmpegPCMAudio(
             executable="ffmpeg",
             source=audio_url,
             before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
         )
+        source = discord.PCMVolumeTransformer(source)
 
         def after_play(err):
             if err:

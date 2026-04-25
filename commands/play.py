@@ -47,12 +47,13 @@ async def play_song(current_url, interaction=None, client=None, voice_client=Non
 
         await interaction.channel.send(embed=embed)
         
-        # 4. Preparación de FFmpeg 
+        # 4. Preparación de FFmpeg (envuelto en PCMVolumeTransformer para control de volumen)
         source = discord.FFmpegPCMAudio(
             executable="ffmpeg",
             source=audio_url,
             before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
         )
+        source = discord.PCMVolumeTransformer(source)
         
         # 5. Callback al finalizar la canción
         def after_play(err):
@@ -84,18 +85,19 @@ async def play_next_in_queue(guild_id, client, interaction, voice_client):
     """Saca la siguiente canción de la cola y la reproduce."""
     # 1. Obtiene la cola actual
     queue = client.music_queues.get(guild_id, [])
-    
+
     if not queue:
         print("🎵 Cola vacía.")
         return
-    
+
     # 2. Elimina la canción que terminó
     queue.pop(0)
-    
+
     # 3. Obtén la siguiente canción
-    next_url = queue[0] if queue else None 
+    next_url = queue[0] if queue else None
     print(f"▶️ Siguiente canción: {next_url}")
-    
+
+    # 4. Reproducir siguiente canción (play_song ya envuelve en PCMVolumeTransformer)
     await play_song(next_url['url_yt'], interaction, client, voice_client)
 
 async def setup(client: discord.Client):
