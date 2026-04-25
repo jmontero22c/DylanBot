@@ -4,3 +4,10 @@ yt-dlp #yt-dlp o wavelink
 ytmusicapi
 python-dotenv
 flask-cors
+edge_tts
+google.genai
+gtts
+PyNaCl
+davey
+ollama
+aiosqlite

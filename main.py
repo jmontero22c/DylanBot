@@ -18,11 +18,17 @@ TOKEN = os.getenv('TOKEN')
 client = MyClient(intents=intents)
 
 async def load_commands():
-    from commands import hello, play, skip, versicle
+    # Inicializar base de datos primero
+    from utils.database import init_db
+    await init_db()
+
+    # Cargar comandos
+    from commands import hello, play, skip, versicle, chat
     await hello.setup(client)
     await play.setup(client)
     await skip.setup(client)
     await versicle.setup(client)
+    await chat.setup(client)
     print("Comandos cargados correctamente.")
 
 # Evento on_ready - se activa cuando el bot se conecta

@@ -463,6 +463,78 @@ def clear_queue(guild_id):
 
     return jsonify({"success": False, "error": "No hay cola para este guild", "data": None})
 
+@app.route('/api/chat', methods=['POST'])
+def chat_with_dylan():
+    """Endpoint para chatear con DylanModel (IA con memoria)"""
+    if not discord_client:
+        return cors_jsonify({"success": False, "error": "Bot no inicializado", "data": None})
+
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return cors_jsonify({"success": False, "error": "Mensaje requerido", "data": None})
+
+    message = data['message']
+    user_id = data.get('user_id', 0)  # ID de usuario web (puede ser 0 si no hay auth)
+    guild_id = data.get('guild_id', 0)
+
+    if not user_id or not guild_id:
+        return cors_jsonify({"success": False, "error": "user_id y guild_id requeridos", "data": None})
+
+    try:
+        # Importar DylanModel
+        from ollama_client import dylan_model
+
+        # Procesar mensaje (usar event loop del bot si es necesario)
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                dylan_model.chat(int(user_id), int(guild_id), message)
+            )
+        finally:
+            loop.close()
+
+        return cors_jsonify({
+            "success": True,
+            "data": {
+                "response": result["response"],
+                "user_id": result["user_id"],
+                "guild_id": result["guild_id"]
+            },
+            "error": None
+        })
+
+    except Exception as e:
+        print(f"❌ Error en /api/chat: {e}")
+        return cors_jsonify({"success": False, "error": str(e), "data": None})
+
+
+@app.route('/api/dylan/stats', methods=['GET'])
+def get_dylan_stats():
+    """Obtiene estadísticas de uso de DylanModel"""
+    try:
+        import asyncio
+        from utils.database import get_stats
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            stats = loop.run_until_complete(get_stats())
+        finally:
+            loop.close()
+
+        return cors_jsonify({
+            "success": True,
+            "data": stats,
+            "error": None
+        })
+
+    except Exception as e:
+        print(f"❌ Error en /api/dylan/stats: {e}")
+        return cors_jsonify({"success": False, "error": str(e), "data": None})
+
+
 @app.route('/api/queue/<string:guild_id>/<int:index>', methods=['DELETE'])
 def remove_from_queue(guild_id, index):
     """Elimina una canción específica de la cola (no puede ser la que está sonando)"""
